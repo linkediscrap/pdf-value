@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDFvault — Every PDF tool you need, in one place</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+
+<!-- PDF processing libraries — all bundled locally so the app is fully self-contained -->
+<!-- pdf-lib WITH encryption support (exposes window.PDFLib + .encrypt) -->
+<script src="lib/pdf-encrypt.js"></script>
+<script src="lib/html2canvas.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/pdf.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<script src="lib/FileSaver.min.js"></script>
+<script src="lib/mammoth.browser.min.js"></script>
+
+<style>
+:root{
+  --orange:#ff5722;
+  --orange-dark:#e64a19;
+  --orange-light:#fff3ef;
+  --orange-soft:#ffe9e1;
+  --ink:#1a1d29;
+  --ink-soft:#4a4f63;
+  --muted:#8a8fa3;
+  --line:#ececf2;
+  --bg:#ffffff;
+  --bg-soft:#fafafc;
+  --green:#26b35a;
+  --shadow-sm:0 1px 3px rgba(26,29,41,.06),0 1px 2px rgba(26,29,41,.04);
+  --shadow-md:0 4px 16px rgba(26,29,41,.08);
+  --shadow-lg:0 12px 40px rgba(26,29,41,.12);
+  --radius:14px;
+  --radius-lg:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--bg);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:'Sora',sans-serif;line-height:1.15;letter-spacing:-.02em}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* ===== Header ===== */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;gap:32px;height:68px}
+.logo{display:flex;align-items:center;gap:9px;font-family:'Sora';font-weight:800;font-size:21px;letter-spacing:-.03em}
+.logo-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--orange),var(--orange-dark));
+  display:grid;place-items:center;color:#fff;font-size:18px;
+  box-shadow:0 4px 12px rgba(255,87,34,.35);
+}
+.logo b{color:var(--orange)}
+.nav-links{display:flex;gap:26px;margin-left:8px}
+.nav-links a{font-size:14.5px;font-weight:500;color:var(--ink-soft);transition:color .15s}
+.nav-links a:hover{color:var(--orange)}
+.nav-spacer{flex:1}
+.nav-cta{display:flex;gap:10px;align-items:center}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px;
+  transition:all .15s;white-space:nowrap;
+}
+.btn-ghost{color:var(--ink-soft)}
+.btn-ghost:hover{background:var(--bg-soft);color:var(--ink)}
+.btn-primary{background:var(--orange);color:#fff;box-shadow:0 4px 12px rgba(255,87,34,.3)}
+.btn-primary:hover{background:var(--orange-dark);transform:translateY(-1px);box-shadow:0 6px 18px rgba(255,87,34,.4)}
+.menu-toggle{display:none;font-size:24px;color:var(--ink)}
+
+/* ===== Hero ===== */
+.hero{padding:72px 0 40px;text-align:center;position:relative;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;top:-40%;left:50%;transform:translateX(-50%);
+  width:900px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,var(--orange-light),transparent 65%);
+  z-index:-1;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--orange-soft);color:var(--orange-dark);
+  padding:6px 14px;border-radius:100px;font-size:13px;font-weight:600;margin-bottom:22px;
+}
+.hero h1{font-size:54px;font-weight:800;max-width:760px;margin:0 auto 18px}
+.hero h1 .hl{
+  background:linear-gradient(120deg,var(--orange),var(--orange-dark));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero p{font-size:18px;color:var(--ink-soft);max-width:540px;margin:0 auto 12px}
+.hero-note{font-size:13.5px;color:var(--muted);display:flex;gap:18px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.hero-note span{display:inline-flex;align-items:center;gap:6px}
+.dot-green{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+/* ===== Search ===== */
+.tool-search{max-width:520px;margin:30px auto 0;position:relative}
+.tool-search input{
+  width:100%;padding:15px 20px 15px 48px;border-radius:14px;
+  border:1.5px solid var(--line);font-size:15px;font-family:inherit;
+  transition:all .15s;background:#fff;box-shadow:var(--shadow-sm);
+}
+.tool-search input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 4px var(--orange-soft)}
+.tool-search svg{position:absolute;left:17px;top:50%;transform:translateY(-50%);color:var(--muted)}
+
+/* ===== Category tabs ===== */
+.cats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:36px 0 8px}
+.cat-tab{
+  padding:9px 18px;border-radius:100px;font-size:14px;font-weight:600;
+  color:var(--ink-soft);border:1.5px solid var(--line);background:#fff;transition:all .15s;
+}
+.cat-tab:hover{border-color:var(--orange);color:var(--orange)}
+.cat-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ===== Tools grid ===== */
+.tools-section{padding:34px 0 80px}
+.tools-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:16px;
+}
+.tool-card{
+  background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:22px 20px;cursor:pointer;transition:all .18s;position:relative;
+  display:flex;flex-direction:column;gap:12px;text-align:left;
+}
+.tool-card:hover{
+  border-color:transparent;transform:translateY(-3px);
+  box-shadow:var(--shadow-lg);
+}
+.tool-card:hover .tool-ico{transform:scale(1.08) rotate(-3deg)}
+.tool-ico{
+  width:48px;height:48px;border-radius:12px;display:grid;place-items:center;
+  font-size:22px;transition:transform .2s;
+}
+.tool-card h3{font-size:16px;font-weight:600}
+.tool-card p{font-size:13px;color:var(--muted);line-height:1.45}
+.tool-tag{
+  position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:6px;
+}
+.tag-new{background:var(--green);color:#fff}
+.tag-hot{background:var(--orange);color:#fff}
+/* icon color themes */
+.ico-org{background:var(--orange-soft);color:var(--orange-dark)}
+.ico-blue{background:#e8f0fe;color:#1a73e8}
+.ico-green{background:#e6f7ee;color:#1a9850}
+.ico-purple{background:#f0e9fe;color:#7c3aed}
+.ico-pink{background:#fde9f3;color:#db2777}
+.ico-teal{background:#e0f5f3;color:#0d9488}
+.ico-amber{background:#fef3e0;color:#d97706}
+.ico-red{background:#fdeaea;color:#dc2626}
+.ico-indigo{background:#e8eafe;color:#4f46e5}
+
+.no-results{text-align:center;padding:60px 20px;color:var(--muted);grid-column:1/-1}
+.no-results .big{font-size:40px;margin-bottom:12px}
+
+/* ===== Features strip ===== */
+.features{background:var(--bg-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:70px 0}
+.features-head{text-align:center;margin-bottom:50px}
+.features-head h2{font-size:36px;font-weight:800;margin-bottom:12px}
+.features-head p{color:var(--ink-soft);font-size:16px;max-width:520px;margin:0 auto}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:34px}
+.feat{text-align:center}
+.feat-ico{
+  width:60px;height:60px;margin:0 auto 18px;border-radius:16px;
+  background:linear-gradient(135deg,var(--orange-light),var(--orange-soft));
+  display:grid;place-items:center;font-size:26px;
+}
+.feat h3{font-size:18px;margin-bottom:8px}
+.feat p{font-size:14px;color:var(--ink-soft)}
+
+/* ===== Steps ===== */
+.steps{padding:80px 0}
+.steps-head{text-align:center;margin-bottom:54px}
+.steps-head h2{font-size:36px;font-weight:800;margin-bottom:12px}
+.steps-head p{color:var(--ink-soft)}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:step}
+.step{position:relative;padding:32px 26px;border:1.5px solid var(--line);border-radius:var(--radius-lg);background:#fff}
+.step::before{
+  counter-increment:step;content:"0" counter(step);
+  font-family:'Sora';font-weight:800;font-size:48px;color:var(--orange-soft);
+  position:absolute;top:18px;right:24px;line-height:1;
+}
+.step h3{font-size:19px;margin-bottom:10px;position:relative}
+.step p{font-size:14.5px;color:var(--ink-soft)}
+
+/* ===== CTA banner ===== */
+.cta-band{
+  margin:0 0 0;padding:64px 0;
+  background:linear-gradient(135deg,var(--orange),var(--orange-dark));
+  text-align:center;color:#fff;position:relative;overflow:hidden;
+}
+.cta-band::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.15),transparent 50%);
+}
+.cta-band h2{font-size:38px;font-weight:800;margin-bottom:14px;position:relative}
+.cta-band p{font-size:17px;opacity:.92;margin-bottom:28px;position:relative}
+.cta-band .btn{background:#fff;color:var(--orange-dark);font-size:16px;padding:14px 30px;position:relative}
+.cta-band .btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+/* ===== Footer ===== */
+footer{background:var(--ink);color:#fff;padding:60px 0 30px}
+.foot-grid{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:34px;margin-bottom:44px}
+.foot-brand .logo{color:#fff;margin-bottom:14px}
+.foot-brand p{font-size:14px;color:#a0a3b5;max-width:280px}
+.foot-col h4{font-size:14px;font-weight:600;margin-bottom:16px;color:#fff}
+.foot-col a{display:block;font-size:13.5px;color:#a0a3b5;margin-bottom:10px;transition:color .15s}
+.foot-col a:hover{color:var(--orange)}
+.foot-bottom{border-top:1px solid #2a2e3f;padding-top:26px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.foot-bottom p{font-size:13px;color:#a0a3b5}
+.foot-social{display:flex;gap:12px}
+.foot-social a{width:36px;height:36px;border-radius:9px;background:#2a2e3f;display:grid;place-items:center;color:#a0a3b5;transition:all .15s}
+.foot-social a:hover{background:var(--orange);color:#fff}
+
+/* ===== Modal / Tool workspace ===== */
+.modal-overlay{
+  position:fixed;inset:0;z-index:1000;background:rgba(26,29,41,.55);
+  backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;
+  padding:40px 20px;overflow-y:auto;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:#fff;border-radius:var(--radius-lg);max-width:760px;width:100%;
+  box-shadow:var(--shadow-lg);animation:pop .25s ease;overflow:hidden;
+}
+@keyframes pop{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:none}}
+.modal-head{
+  padding:24px 28px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;
+}
+.modal-head .tool-ico{width:44px;height:44px;font-size:20px;flex-shrink:0}
+.modal-head-txt{flex:1}
+.modal-head h2{font-size:20px;font-weight:700}
+.modal-head p{font-size:13.5px;color:var(--muted)}
+.modal-close{
+  width:36px;height:36px;border-radius:9px;font-size:20px;color:var(--muted);
+  display:grid;place-items:center;transition:all .15s;flex-shrink:0;
+}
+.modal-close:hover{background:var(--bg-soft);color:var(--ink)}
+.modal-body{padding:28px}
+
+/* dropzone */
+.dropzone{
+  border:2.5px dashed var(--line);border-radius:var(--radius);
+  padding:48px 24px;text-align:center;transition:all .18s;cursor:pointer;background:var(--bg-soft);
+}
+.dropzone:hover,.dropzone.drag{border-color:var(--orange);background:var(--orange-light)}
+.dropzone .dz-ico{font-size:44px;margin-bottom:14px}
+.dropzone h3{font-size:18px;margin-bottom:6px}
+.dropzone p{font-size:14px;color:var(--muted)}
+.dropzone .browse{color:var(--orange);font-weight:600;text-decoration:underline}
+
+/* file list */
+.file-list{margin-top:20px;display:flex;flex-direction:column;gap:10px}
+.file-item{
+  display:flex;align-items:center;gap:14px;padding:14px 16px;
+  border:1.5px solid var(--line);border-radius:12px;background:#fff;
+}
+.file-item .fi-ico{width:40px;height:40px;border-radius:9px;background:var(--orange-soft);color:var(--orange-dark);display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.fi-info{flex:1;min-width:0}
+.fi-info .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fi-info .size{font-size:12px;color:var(--muted)}
+.fi-handle{cursor:grab;color:var(--muted);font-size:18px;padding:4px}
+.fi-remove{width:30px;height:30px;border-radius:8px;color:var(--muted);font-size:18px;display:grid;place-items:center;transition:all .15s;flex-shrink:0}
+.fi-remove:hover{background:var(--orange-light);color:var(--orange)}
+.file-item.dragging{opacity:.5}
+
+/* options panel */
+.opt-panel{margin-top:20px;padding:20px;background:var(--bg-soft);border-radius:12px;border:1px solid var(--line)}
+.opt-panel h4{font-size:14px;margin-bottom:14px;color:var(--ink)}
+.opt-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.opt-row:last-child{margin-bottom:0}
+.opt-row label{font-size:13.5px;font-weight:500;color:var(--ink-soft)}
+.opt-row input[type=text],.opt-row input[type=number],.opt-row select{
+  padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;
+}
+.opt-row input:focus,.opt-row select:focus{outline:none;border-color:var(--orange)}
+.radio-group{display:flex;gap:10px;flex-wrap:wrap}
+.radio-pill{
+  padding:9px 16px;border:1.5px solid var(--line);border-radius:9px;font-size:13.5px;
+  font-weight:500;cursor:pointer;transition:all .15s;
+}
+.radio-pill.sel{border-color:var(--orange);background:var(--orange-light);color:var(--orange-dark);font-weight:600}
+
+/* action button */
+.modal-action{margin-top:24px;display:flex;gap:12px;align-items:center}
+.btn-process{
+  flex:1;background:var(--orange);color:#fff;padding:15px;border-radius:12px;
+  font-size:16px;font-weight:600;box-shadow:0 4px 14px rgba(255,87,34,.3);transition:all .15s;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+}
+.btn-process:hover{background:var(--orange-dark);transform:translateY(-1px)}
+.btn-process:disabled{background:var(--line);color:var(--muted);box-shadow:none;cursor:not-allowed;transform:none}
+
+/* result */
+.result-box{text-align:center;padding:30px 20px}
+.result-box .r-ico{
+  width:72px;height:72px;margin:0 auto 18px;border-radius:50%;
+  background:var(--green);color:#fff;display:grid;place-items:center;font-size:36px;
+  animation:pop .3s ease;
+}
+.result-box h3{font-size:22px;margin-bottom:8px}
+.result-box p{color:var(--ink-soft);margin-bottom:24px}
+.btn-download{
+  background:var(--green);color:#fff;padding:14px 28px;border-radius:12px;
+  font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:9px;transition:all .15s;
+}
+.btn-download:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn-again{display:block;margin:16px auto 0;color:var(--muted);font-size:14px;font-weight:500}
+.btn-again:hover{color:var(--orange)}
+
+/* spinner */
+.spinner{
+  width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing-state{text-align:center;padding:40px 20px}
+.processing-state .spin-lg{
+  width:54px;height:54px;border:4px solid var(--orange-soft);
+  border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px;
+}
+.processing-state p{color:var(--ink-soft);font-size:15px}
+
+.err-msg{background:#fdeaea;color:#dc2626;padding:12px 16px;border-radius:10px;font-size:14px;margin-top:16px;display:none}
+.err-msg.show{display:block}
+
+/* preview canvas */
+.pdf-preview{margin-top:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;max-height:340px;overflow-y:auto;padding:4px}
+.preview-page{border:1.5px solid var(--line);border-radius:8px;overflow:hidden;position:relative;cursor:pointer;transition:all .15s}
+.preview-page:hover{border-color:var(--orange)}
+.preview-page.selected{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-soft)}
+.preview-page canvas{width:100%;display:block}
+.preview-page .pg-num{position:absolute;bottom:0;left:0;right:0;background:rgba(26,29,41,.75);color:#fff;font-size:11px;text-align:center;padding:3px}
+.preview-page .pg-check{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;color:transparent}
+.preview-page.selected .pg-check{background:var(--orange);border-color:var(--orange);color:#fff}
+
+@media(max-width:860px){
+  .nav-links{display:none}
+  .menu-toggle{display:block}
+  .hero h1{font-size:38px}
+  .hero p{font-size:16px}
+  .steps-grid{grid-template-columns:1fr}
+  .foot-grid{grid-template-columns:1fr 1fr;gap:28px}
+  .foot-brand{grid-column:1/-1}
+  .features-head h2,.steps-head h2,.cta-band h2{font-size:28px}
+}
+@media(max-width:480px){
+  .hero h1{font-size:32px}
+  .tools-grid{grid-template-columns:1fr 1fr;gap:12px}
+  .tool-card{padding:16px 14px}
+  .tool-card p{display:none}
+  .foot-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header>
+  <div class="wrap nav">
+    <a href="#" class="logo"><span class="logo-mark">◆</span>PDF<b>vault</b></a>
+    <nav class="nav-links">
+      <a href="#" data-cat="organize">Organize</a>
+      <a href="#" data-cat="convert">Convert</a>
+      <a href="#" data-cat="edit">Edit</a>
+      <a href="#" data-cat="security">Security</a>
+      <a href="#tools-anchor">All tools</a>
+    </nav>
+    <div class="nav-spacer"></div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost">Log in</a>
+      <a href="#" class="btn btn-primary">Sign up free</a>
+    </div>
+    <button class="menu-toggle">☰</button>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <span class="hero-badge">⚡ 30+ tools · 100% free · No sign-up needed</span>
+    <h1>Every <span class="hl">PDF tool</span> you'll ever need, in one place</h1>
+    <p>Merge, split, compress, convert, edit, sign and protect your PDFs. Fast, easy, and completely private — your files never leave your device.</p>
+    <div class="tool-search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="searchInput" placeholder="Search for a tool — merge, compress, convert…">
+    </div>
+    <div class="hero-note">
+      <span><span class="dot-green"></span> Files processed in your browser</span>
+      <span><span class="dot-green"></span> Nothing uploaded to a server</span>
+      <span><span class="dot-green"></span> Unlimited use</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TOOLS ============ -->
+<section class="tools-section" id="tools-anchor">
+  <div class="wrap">
+    <div class="cats" id="catTabs">
+      <button class="cat-tab active" data-filter="all">All tools</button>
+      <button class="cat-tab" data-filter="organize">Organize</button>
+      <button class="cat-tab" data-filter="convert">Convert</button>
+      <button class="cat-tab" data-filter="edit">Edit</button>
+      <button class="cat-tab" data-filter="security">Security</button>
+      <button class="cat-tab" data-filter="optimize">Optimize</button>
+    </div>
+    <div class="tools-grid" id="toolsGrid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="features">
+  <div class="wrap">
+    <div class="features-head">
+      <h2>Built for speed, privacy and simplicity</h2>
+      <p>Professional-grade PDF processing that respects your time and your data.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="feat-ico">🔒</div>
+        <h3>Truly private</h3>
+        <p>Files are processed entirely in your browser. Nothing is ever uploaded, stored, or seen by anyone but you.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico">⚡</div>
+        <h3>Instant results</h3>
+        <p>No upload waits, no queues. Tools run locally so your documents are ready in seconds.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico">🎯</div>
+        <h3>Always free</h3>
+        <p>Every core tool is free with no limits, no watermarks, and no account required to get started.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico">📱</div>
+        <h3>Works everywhere</h3>
+        <p>Use it on desktop, tablet or phone. Any modern browser, no installs or plugins needed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STEPS ============ -->
+<section class="steps">
+  <div class="wrap">
+    <div class="steps-head">
+      <h2>Three steps, done</h2>
+      <p>From file to finished in under a minute.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step">
+        <h3>Pick a tool</h3>
+        <p>Choose from over 30 tools to merge, split, convert, compress, protect or edit your PDF files.</p>
+      </div>
+      <div class="step">
+        <h3>Add your files</h3>
+        <p>Drag and drop or browse to select. Reorder, adjust settings, and preview before you process.</p>
+      </div>
+      <div class="step">
+        <h3>Download</h3>
+        <p>Get your processed file instantly. No watermarks, no sign-up, no waiting around.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta-band">
+  <div class="wrap">
+    <h2>Ready to work smarter with PDFs?</h2>
+    <p>Join millions who trust PDFvault for fast, private document tools.</p>
+    <a href="#tools-anchor" class="btn">Explore all tools →</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="logo"><span class="logo-mark">◆</span>PDF<b style="color:var(--orange)">vault</b></div>
+        <p>The complete toolkit for working with PDF documents — fast, private, and free for everyone.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Organize</h4>
+        <a href="#" data-tool="merge">Merge PDF</a>
+        <a href="#" data-tool="split">Split PDF</a>
+        <a href="#" data-tool="remove">Remove pages</a>
+        <a href="#" data-tool="extract">Extract pages</a>
+        <a href="#" data-tool="organize">Organize PDF</a>
+      </div>
+      <div class="foot-col">
+        <h4>Convert</h4>
+        <a href="#" data-tool="jpgtopdf">JPG to PDF</a>
+        <a href="#" data-tool="pdftojpg">PDF to JPG</a>
+        <a href="#" data-tool="wordtopdf">Word to PDF</a>
+        <a href="#" data-tool="htmltopdf">HTML to PDF</a>
+        <a href="#" data-tool="texttopdf">Text to PDF</a>
+      </div>
+      <div class="foot-col">
+        <h4>Edit & Sign</h4>
+        <a href="#" data-tool="rotate">Rotate PDF</a>
+        <a href="#" data-tool="pagenumbers">Page numbers</a>
+        <a href="#" data-tool="watermark">Watermark</a>
+        <a href="#" data-tool="sign">Sign PDF</a>
+        <a href="#" data-tool="editmeta">Edit metadata</a>
+      </div>
+      <div class="foot-col">
+        <h4>Security</h4>
+        <a href="#" data-tool="protect">Protect PDF</a>
+        <a href="#" data-tool="unlock">Unlock PDF</a>
+        <a href="#" data-tool="compress">Compress PDF</a>
+        <a href="#" data-tool="flatten">Flatten PDF</a>
+        <a href="#" data-tool="repair">Repair PDF</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <p>© 2026 PDFvault. All files processed locally in your browser.</p>
+      <div class="foot-social">
+        <a href="#">𝕏</a>
+        <a href="#">in</a>
+        <a href="#">f</a>
+        <a href="#">⌾</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="tool-ico" id="modalIco">📄</div>
+      <div class="modal-head-txt">
+        <h2 id="modalTitle">Tool</h2>
+        <p id="modalDesc">Description</p>
+      </div>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
